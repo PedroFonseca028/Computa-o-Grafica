@@ -1,13 +1,8 @@
 {
-  "epochs": 5,
-  "batch_size": 128,
-  "modelos": [
-    "cnn_pequena",
-    "cnn_dropout"
-  ],
-  "train_limit": null,
-  "test_limit": null,
-  "val_split": 0.1,
-  "seed": 42,
-  "tensorflow_version": "2.21.0"
+    "epochs": 8,
+    "batch_size": 16,
+    "img_size": 64,
+    "data_dir": "data\\raw-img",
+    "output_dir": "resultados",
+    "seed": 42
 }
