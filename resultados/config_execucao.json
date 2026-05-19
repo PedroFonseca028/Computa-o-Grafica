@@ -1,8 +1,0 @@
-{
-    "epochs": 8,
-    "batch_size": 16,
-    "img_size": 64,
-    "data_dir": "data\\raw-img",
-    "output_dir": "resultados",
-    "seed": 42
-}
