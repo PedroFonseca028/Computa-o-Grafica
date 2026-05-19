@@ -20,7 +20,7 @@ from sklearn.metrics import (
     recall_score,
 )
 
-CLASS_NAMES = [
+NOMES_CLASSES = [
     "Cachorro",
     "Cavalo",
     "Elefante",
@@ -34,72 +34,81 @@ CLASS_NAMES = [
 ]
 
 
-def parse_args():
+def argumentos():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--epochs", type=int, default=8)
-    parser.add_argument("--batch-size", type=int, default=16)
-    parser.add_argument("--img-size", type=int, default=64)
-    parser.add_argument("--data-dir", type=Path, default=Path("data/raw-img"))
-    parser.add_argument("--output-dir", type=Path, default=Path("resultados"))
-    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--epocas", type=int, default=8)
+    parser.add_argument("--tamanho-lote", type=int, default=16)
+    parser.add_argument("--tamanho-imagem", type=int, default=64)
+    parser.add_argument("--diretorio-dados", type=Path, default=Path("data/raw-img"))
+    parser.add_argument("--diretorio-saida", type=Path, default=Path("resultados"))
+    parser.add_argument("--semente", type=int, default=42)
 
     return parser.parse_args()
 
 
-def configure_runtime(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-    tf.keras.utils.set_random_seed(seed)
+def configurar_execucao(semente):
+    random.seed(semente)
+    np.random.seed(semente)
+    tf.keras.utils.set_random_seed(semente)
 
 
-def load_data(data_dir, img_size, batch_size, seed):
-    train_ds = tf.keras.utils.image_dataset_from_directory(
-        data_dir,
+def carregar_dados(diretorio_dados, tamanho_imagem, tamanho_lote, semente):
+    treino = tf.keras.utils.image_dataset_from_directory(
+        diretorio_dados,
         validation_split=0.2,
         subset="training",
-        seed=seed,
-        image_size=(img_size, img_size),
-        batch_size=batch_size
+        seed=semente,
+        image_size=(tamanho_imagem, tamanho_imagem),
+        batch_size=tamanho_lote
     )
 
-    val_ds = tf.keras.utils.image_dataset_from_directory(
-        data_dir,
+    validacao = tf.keras.utils.image_dataset_from_directory(
+        diretorio_dados,
         validation_split=0.2,
         subset="validation",
-        seed=seed,
-        image_size=(img_size, img_size),
-        batch_size=batch_size
+        seed=semente,
+        image_size=(tamanho_imagem, tamanho_imagem),
+        batch_size=tamanho_lote
     )
 
     AUTOTUNE = tf.data.AUTOTUNE
-    return train_ds.prefetch(AUTOTUNE), val_ds.prefetch(AUTOTUNE)
+
+    return treino.prefetch(AUTOTUNE), validacao.prefetch(AUTOTUNE)
 
 
-def build_cnn_pequena(input_shape=(64, 64, 3), num_classes=10):
-    model = tf.keras.Sequential([
+def criar_cnn_pequena(input_shape=(64, 64, 3), num_classes=10):
+
+    modelo = tf.keras.Sequential([
         tf.keras.layers.Rescaling(1./255, input_shape=input_shape),
+
         tf.keras.layers.Conv2D(16, 3, activation="relu"),
         tf.keras.layers.MaxPooling2D(),
+
         tf.keras.layers.Conv2D(32, 3, activation="relu"),
         tf.keras.layers.MaxPooling2D(),
+
         tf.keras.layers.Flatten(),
+
         tf.keras.layers.Dense(64, activation="relu"),
+
         tf.keras.layers.Dense(num_classes, activation="softmax")
     ])
 
-    model.compile(
+    modelo.compile(
         optimizer="adam",
         loss="sparse_categorical_crossentropy",
         metrics=["accuracy"]
     )
 
-    return model
+    return modelo
 
 
-def build_cnn_dropout(input_shape=(64, 64, 3), num_classes=10):
-    model = tf.keras.Sequential([
+def criar_cnn_dropout(input_shape=(64, 64, 3), num_classes=10):
+
+    modelo = tf.keras.Sequential([
         tf.keras.layers.Rescaling(1./255, input_shape=input_shape),
+
         tf.keras.layers.Conv2D(16, 3, activation="relu"),
         tf.keras.layers.MaxPooling2D(),
         tf.keras.layers.Dropout(0.2),
@@ -109,182 +118,262 @@ def build_cnn_dropout(input_shape=(64, 64, 3), num_classes=10):
         tf.keras.layers.Dropout(0.3),
 
         tf.keras.layers.Flatten(),
+
         tf.keras.layers.Dense(64, activation="relu"),
         tf.keras.layers.Dropout(0.3),
+
         tf.keras.layers.Dense(num_classes, activation="softmax")
     ])
 
-    model.compile(
+    modelo.compile(
         optimizer="adam",
         loss="sparse_categorical_crossentropy",
         metrics=["accuracy"]
     )
 
-    return model
+    return modelo
 
 
-def save_history_plot(history, model_name, output_dir):
-    hist = pd.DataFrame(history.history)
-    hist.to_csv(output_dir / f"historico_{model_name}.csv")
+def salvar_grafico_historico(historico, nome_modelo, diretorio_saida):
 
-    epochs = range(1, len(hist)+1)
+    hist = pd.DataFrame(historico.history)
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    hist.to_csv(
+        diretorio_saida / f"historico_{nome_modelo}.csv"
+    )
 
-    axes[0].plot(epochs, hist["accuracy"], marker="o")
-    axes[0].plot(epochs, hist["val_accuracy"], marker="o")
-    axes[0].set_title("Acurácia")
-    axes[0].grid(True)
-    axes[0].legend(["Treino", "Validação"])
+    epocas = range(1, len(hist) + 1)
 
-    axes[1].plot(epochs, hist["loss"], marker="o")
-    axes[1].plot(epochs, hist["val_loss"], marker="o")
-    axes[1].set_title("Loss")
-    axes[1].grid(True)
-    axes[1].legend(["Treino", "Validação"])
+    fig, eixos = plt.subplots(1, 2, figsize=(14, 5))
+
+    # Acurácia
+    eixos[0].plot(epocas, hist["accuracy"], marker="o")
+    eixos[0].plot(epocas, hist["val_accuracy"], marker="o")
+
+    eixos[0].set_title("Acurácia")
+    eixos[0].set_xlabel("Épocas")
+    eixos[0].set_ylabel("Acurácia")
+
+    eixos[0].grid(True)
+
+    eixos[0].legend(["Treino", "Validação"])
+
+    # Loss
+    eixos[1].plot(epocas, hist["loss"], marker="o")
+    eixos[1].plot(epocas, hist["val_loss"], marker="o")
+
+    eixos[1].set_title("Perda (Loss)")
+    eixos[1].set_xlabel("Épocas")
+    eixos[1].set_ylabel("Loss")
+
+    eixos[1].grid(True)
+
+    eixos[1].legend(["Treino", "Validação"])
 
     fig.tight_layout()
-    fig.savefig(output_dir / f"convergencia_{model_name}.png", dpi=200)
+
+    fig.savefig(
+        diretorio_saida / f"grafico_convergencia_{nome_modelo}.png",
+        dpi=200
+    )
+
     plt.close()
 
 
-def save_confusion_matrix(y_true, y_pred, model_name, output_dir):
-    cm = confusion_matrix(y_true, y_pred)
+def salvar_matriz_confusao(y_real, y_predito, nome_modelo, diretorio_saida):
 
-    pd.DataFrame(cm).to_csv(
-        output_dir / f"matriz_confusao_{model_name}.csv"
+    matriz = confusion_matrix(y_real, y_predito)
+
+    pd.DataFrame(matriz).to_csv(
+        diretorio_saida / f"matriz_confusao_{nome_modelo}.csv"
     )
 
     fig, ax = plt.subplots(figsize=(12, 10))
-    im = ax.imshow(cm)
-    plt.colorbar(im)
 
-    ax.set_xticks(np.arange(len(CLASS_NAMES)))
-    ax.set_yticks(np.arange(len(CLASS_NAMES)))
-    ax.set_xticklabels(CLASS_NAMES, rotation=45)
-    ax.set_yticklabels(CLASS_NAMES)
+    imagem = ax.imshow(matriz)
 
-    for i in range(len(CLASS_NAMES)):
-        for j in range(len(CLASS_NAMES)):
-            ax.text(j, i, cm[i, j], ha="center", va="center")
+    plt.colorbar(imagem)
+
+    ax.set_xticks(np.arange(len(NOMES_CLASSES)))
+    ax.set_yticks(np.arange(len(NOMES_CLASSES)))
+
+    ax.set_xticklabels(NOMES_CLASSES, rotation=45)
+    ax.set_yticklabels(NOMES_CLASSES)
+
+    ax.set_xlabel("Classe Predita")
+    ax.set_ylabel("Classe Real")
+
+    for i in range(len(NOMES_CLASSES)):
+        for j in range(len(NOMES_CLASSES)):
+            ax.text(j, i, matriz[i, j], ha="center", va="center")
 
     fig.tight_layout()
-    fig.savefig(output_dir / f"matriz_confusao_{model_name}.png", dpi=200)
+
+    fig.savefig(
+        diretorio_saida / f"matriz_confusao_{nome_modelo}.png",
+        dpi=200
+    )
+
     plt.close()
 
 
-def save_sample_predictions(images, labels, preds, model_name, output_dir):
+def salvar_predicoes_exemplo(imagens, labels, preds, nome_modelo, diretorio_saida):
+
     fig, axes = plt.subplots(5, 5, figsize=(12, 12))
 
     for ax, img, real, pred in zip(
         axes.ravel(),
-        images[:25],
+        imagens[:25],
         labels[:25],
         preds[:25]
     ):
+
         ax.imshow(img.astype("uint8"))
+
         ax.set_title(
-            f"R:{CLASS_NAMES[real]}\nP:{CLASS_NAMES[pred]}",
+            f"R: {NOMES_CLASSES[real]}\nP: {NOMES_CLASSES[pred]}",
             fontsize=8
         )
+
         ax.axis("off")
 
     fig.tight_layout()
-    fig.savefig(output_dir / f"predicoes_{model_name}.png")
+
+    fig.savefig(
+        diretorio_saida / f"predicoes_{nome_modelo}.png"
+    )
+
     plt.close()
 
 
-def evaluate_model(model, dataset, model_name, output_dir):
-    y_true = []
-    y_pred = []
-    sample_images = []
+def avaliar_modelo(modelo, dataset, nome_modelo, diretorio_saida):
 
-    for images, labels in dataset:
-        preds = model.predict(images, verbose=0)
+    y_real = []
+    y_predito = []
+
+    imagens_exemplo = []
+
+    for imagens, labels in dataset:
+
+        preds = modelo.predict(imagens, verbose=0)
+
         preds = np.argmax(preds, axis=1)
 
-        y_true.extend(labels.numpy())
-        y_pred.extend(preds)
-        sample_images.extend(images.numpy())
+        y_real.extend(labels.numpy())
+        y_predito.extend(preds)
 
-    save_confusion_matrix(y_true, y_pred, model_name, output_dir)
-    save_sample_predictions(sample_images, y_true, y_pred, model_name, output_dir)
+        imagens_exemplo.extend(imagens.numpy())
 
-    report = classification_report(
-        y_true,
-        y_pred,
-        target_names=CLASS_NAMES,
+    salvar_matriz_confusao(
+        y_real,
+        y_predito,
+        nome_modelo,
+        diretorio_saida
+    )
+
+    salvar_predicoes_exemplo(
+        imagens_exemplo,
+        y_real,
+        y_predito,
+        nome_modelo,
+        diretorio_saida
+    )
+
+    relatorio = classification_report(
+        y_real,
+        y_predito,
+        target_names=NOMES_CLASSES,
         output_dict=True
     )
 
-    pd.DataFrame(report).transpose().to_csv(
-        output_dir / f"relatorio_classes_{model_name}.csv"
+    pd.DataFrame(relatorio).transpose().to_csv(
+        diretorio_saida / f"relatorio_classes_{nome_modelo}.csv"
     )
 
     return {
-        "modelo": model_name,
-        "accuracy": accuracy_score(y_true, y_pred),
-        "precision": precision_score(y_true, y_pred, average="weighted"),
-        "recall": recall_score(y_true, y_pred, average="weighted"),
-        "f1": f1_score(y_true, y_pred, average="weighted")
+        "modelo": nome_modelo,
+        "acuracia": accuracy_score(y_real, y_predito),
+        "precisao": precision_score(y_real, y_predito, average="weighted"),
+        "revocacao": recall_score(y_real, y_predito, average="weighted"),
+        "f1_score": f1_score(y_real, y_predito, average="weighted")
     }
 
 
-def save_config(args, output_dir):
-    with open(output_dir / "config_execucao.json", "w") as f:
-        json.dump(vars(args), f, indent=4, default=str)
+def salvar_configuracoes(args, diretorio_saida):
+
+    with open(
+        diretorio_saida / "configuracoes_execucao.json",
+        "w"
+    ) as f:
+
+        json.dump(
+            vars(args),
+            f,
+            indent=4,
+            default=str
+        )
 
 
 def main():
-    args = parse_args()
-    args.output_dir.mkdir(exist_ok=True)
 
-    configure_runtime(args.seed)
-    save_config(args, args.output_dir)
+    args = argumentos()
 
-    train_ds, val_ds = load_data(
-        args.data_dir,
-        args.img_size,
-        args.batch_size,
-        args.seed
+    args.diretorio_saida.mkdir(exist_ok=True)
+
+    configurar_execucao(args.semente)
+
+    salvar_configuracoes(args, args.diretorio_saida)
+
+    treino, validacao = carregar_dados(
+        args.diretorio_dados,
+        args.tamanho_imagem,
+        args.tamanho_lote,
+        args.semente
     )
 
     modelos = {
-        "cnn_pequena": build_cnn_pequena,
-        "cnn_dropout": build_cnn_dropout
+        "cnn_pequena": criar_cnn_pequena,
+        "cnn_dropout": criar_cnn_dropout
     }
 
     resultados = []
 
-    for nome, builder in modelos.items():
-        print(f"\nTreinando {nome}")
+    for nome, construtor in modelos.items():
 
-        model = builder((args.img_size, args.img_size, 3))
+        print(f"\nTreinando modelo: {nome}")
 
-        history = model.fit(
-            train_ds,
-            validation_data=val_ds,
-            epochs=args.epochs,
+        modelo = construtor(
+            (args.tamanho_imagem, args.tamanho_imagem, 3)
+        )
+
+        historico = modelo.fit(
+            treino,
+            validation_data=validacao,
+            epochs=args.epocas,
             verbose=1
         )
 
-        save_history_plot(history, nome, args.output_dir)
-
-        metricas = evaluate_model(
-            model,
-            val_ds,
+        salvar_grafico_historico(
+            historico,
             nome,
-            args.output_dir
+            args.diretorio_saida
+        )
+
+        metricas = avaliar_modelo(
+            modelo,
+            validacao,
+            nome,
+            args.diretorio_saida
         )
 
         resultados.append(metricas)
 
     pd.DataFrame(resultados).to_csv(
-        args.output_dir / "metricas_resumo.csv",
+        args.diretorio_saida / "resumo_metricas.csv",
         index=False
     )
 
-    print("\nConcluído")
+    print("\nExecução concluída com sucesso")
 
 
 if __name__ == "__main__":
