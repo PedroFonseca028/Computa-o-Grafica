@@ -1,0 +1,8 @@
+{
+    "epocas": 8,
+    "batch_size": 16,
+    "image_size": 64,
+    "dataset_path": "data\\raw-img",
+    "output_path": "saida_modelos",
+    "seed": 42
+}

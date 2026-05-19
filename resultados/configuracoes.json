@@ -1,8 +1,0 @@
-{
-    "epocas": 8,
-    "tamanho_lote": 16,
-    "tamanho_imagem": 64,
-    "diretorio_dados": "data\\raw-img",
-    "diretorio_saida": "resultados",
-    "semente": 42
-}
